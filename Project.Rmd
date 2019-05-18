@@ -1,0 +1,137 @@
+---
+title: "CMDA4654Project"
+author: "Matt"
+date: "May 7, 2019"
+output: html_document
+---
+## Matthew Dorris
+
+
+## READ DATA
+```{r Code1}
+rm(list=ls())
+dev.off()
+
+#reading the data
+data <- read.csv(file = "C:/College/Senior/data.csv")
+head(data)
+data$attendence <- as.numeric(data$attendence)
+
+set.seed(0)
+n = length(data$attendence)
+trainIDX = sample(1:n, round(.7*n))
+train = data[trainIDX,]
+test = data[-trainIDX,]
+
+```
+
+
+##Exploratory data analysis graph
+```{r Code2}
+#exploratory data analysis graph
+library(ggplot2)
+ggplot(data, aes(x=day, y=attendence, color=weekday)) + geom_point() + ggtitle("Attendence vs. Day")
+
+```
+
+
+## Full Tree with rPART
+```{r Code3}
+library(rpart)
+library(rpart.plot)
+
+tree2 <- rpart(attendence ~ weekday + month + temp + time, data = train)
+rpart.plot(tree2, box.palette="RdBu", shadow.col="gray", nn=TRUE, digits=5)
+
+```
+
+##Plots of Deviation
+```{r Code4}
+library(tree)
+tree1 <- tree(attendence ~ weekday + month + temp + time, data = train)
+
+#plot of deviation
+cvpst <- cv.tree(tree1, K=90)
+plot(cvpst)
+
+cvTree <-  cv.tree(tree1, FUN=prune.tree)
+plot(cvTree$size, cvTree$dev, type="b", main = "Deviance vs. Tree Size", xlab ="Tree Size", ylab = "Deviance")
+
+```
+
+
+##Pruned Trees
+```{r Code5}
+
+cp.select <- function(big.tree) {
+  min.x <- which.min(big.tree$cptable[, 4]) 
+  for(i in 1:nrow(big.tree$cptable)) {
+    if(big.tree$cptable[i, 4] < big.tree$cptable[min.x, 4] + big.tree$cptable[min.x, 5]) return(big.tree$cptable[i, 1]) 
+  }
+}
+pruned.tree <- prune(tree2, cp = cp.select(tree2))
+rpart.plot(pruned.tree, box.palette="RdBu", shadow.col="gray", nn=TRUE, digits=5)
+
+```
+
+##Predictions
+```{r Code6}
+predPruned <-  predict(pruned.tree, test)
+predTree2 <-  predict(tree2, test)
+
+RMSE_ = function(a, b){
+  sqrt((mean((a - b)^2)))
+}
+
+RMSE_(predPruned, test$attendence)
+RMSE_(predTree2, test$attendence)
+
+
+```
+
+##Plots of both Trees
+```{r Code7}
+
+
+plot(data$day, data$attendence, xlim=c(530,600), main = "Regression Tree Plot for 2018", xlab ="day", ylab = "Attendence")
+legend(530, 44000, legend="Regression Tree", col="red", lty=5, cex=0.8)
+g <- seq(1, 599, length = length(predPruned))
+
+matlines(g, predPruned, col = 2, lty = 5)
+
+
+
+
+plot(data$day, data$attendence, xlim=c(530,600), main = "Regression Tree/ Spline Plots for 2018", xlab ="day", ylab = "Attendence")
+legend(530, 44000, legend=c("Regression Tree", "Spline"), col=c("red", "blue"), lty=5:1, cex=0.8)
+g <- seq(1, 599, length = length(predPruned))
+plot(data$day, data$attendence, xlim=c(530,600), main = "Regression Tree/ Spline Plots for 2018", xlab ="day", ylab = "Attendence")
+legend(530, 44000, legend=c("Regression Tree", "Spline"), col=c("red", "blue"), lty=5:1, cex=0.8)
+matlines(g, predPruned, col = 2, lty = 5)
+
+
+
+#COMBINING regression tree and spline
+spline3 <- smooth.spline(seq(1, 599, length.out = 599), data$attendence, seq(1, 599, length.out = 599))
+
+spline.pred3 <- predict(spline3, newdata = data)
+RMSE_ = function(a, b){
+  sqrt((mean((a - b)^2)))
+}
+RMSE_(spline.pred3$y, data$attendence)
+
+
+{plot(data$attendence ~ seq(1, 599, length.out = 599), col = "gray", xlim = c(300, 599), main = "Attendance by Game (2014-2018 Seasons)", xlab = "Game Number", ylab = "Attendance")
+lines(spline.pred3$y ~ spline.pred3$x, col = "blue")
+legend(500, 44000, legend=c("Regression Tree", "Spline"), col=c("red", "blue"), lty=5:1, cex=0.8)
+g <- seq(1, 599, length = length(predPruned))
+matlines(g, predPruned, col = 2, lty = 5)}
+
+
+
+
+g <- seq(1, 599, length = length(predPruned))
+
+
+
+```
