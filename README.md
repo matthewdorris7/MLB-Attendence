@@ -1,4 +1,4 @@
-# MLB-Attendence
+# MLB-Attendance
 
 Analyzing trends with Nationals Park attendance to see if there was any predictive power on the attendance at games
 
